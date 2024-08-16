@@ -26,7 +26,7 @@ def contar_memoria(arq: io.TextIOWrapper) -> tuple[list[str], int]:
     '''conta quantas linhas tem o arquivo'''
     linha = arq.readline()
     memoria_volatil_dados: list[str] = []
-    while linha != '\n':
+    while linha != '\n': #a memória se separa das instrucoes
         memoria_volatil_dados.append(linha) #adiciona o dado lido a memoria de dados
         linha = arq.readline()
     return memoria_volatil_dados, arq.tell() #offset -> onde vão começar as instruções reais
@@ -36,14 +36,14 @@ def buscar_operando(memoria_volatil: list[str], referencia: str) -> int:
     if referencia[:2] == '0X': #se for um endereco -> endereçamento direto
         i = 0
         palavra = memoria_volatil[i].strip('\n').split(sep=' ') #pega a palavra aramazenada e divide endereco do dado
-        while palavra[0] != referencia and i < len(memoria_volatil):
+        while palavra[0] != referencia and i < len(memoria_volatil) - 1:
             i += 1
-            palavra = palavra = memoria_volatil[i].strip('\n').split(sep=' ')
+            palavra = memoria_volatil[i].strip('\n').split(sep=' ')
         
-        if i < len(memoria_volatil): 
+        if palavra[0] == referencia: 
             return int(palavra[1])
         else:
-            print('Endereço não encontrado!')
+            raise ValueError('Endereço não encontrado!')
     else: #se for enderecamento imediato -> o operando faz parte da instrucao
         return int(referencia)
         
@@ -195,15 +195,37 @@ def executar_divisao(memoria_volatil: list[str], instrucao: list[str]):
     Divide o AC ou um registrador específico (Y) por um dado X'''
     global AC, R, MBR, GERAL_A, GERAL_B, GERAL_C
     if len(instrucao) == 2: #DIV X : AC <- AC // X
-        MBR = buscar_operando(memoria_volatil, instrucao[1])
-        if MBR != 0:
-            print("MBR:", MBR)
-            print(f"AC = {AC} / {MBR}", end=' ')
-            R = AC % MBR
-            AC //= MBR
+        parametro = instrucao[1]
+        if parametro == 'A':
+            print(f"AC = {AC} / {GERAL_A}")
+            R = AC % GERAL_A
+            AC //= GERAL_A
+            print(f"= {AC} (com resto R = {R})")
+        elif parametro == 'B':
+            print(f"AC = {AC} / {GERAL_B}")
+            R = AC % GERAL_B
+            AC //= GERAL_B
+            print(f"= {AC} (com resto R = {R})")
+        elif parametro == 'C':
+            print(f"AC = {AC} / {GERAL_C}")
+            R = AC % GERAL_C
+            AC //= GERAL_C
+            print(f"= {AC} (com resto R = {R})")
+        elif parametro == 'MQ':
+            print(f"AC = {AC} / {MQ}")
+            R = AC % MQ
+            AC //= MQ
             print(f"= {AC} (com resto R = {R})")
         else:
-            raise ValueError("Divisão por 0.")
+            MBR = buscar_operando(memoria_volatil, parametro)
+            if MBR != 0:
+                print("MBR:", MBR)
+                print(f"AC = {AC} / {MBR}", end=' ')
+                R = AC % MBR
+                AC //= MBR
+                print(f"= {AC} (com resto R = {R})")
+            else:
+                raise ValueError("Divisão por 0.")
     else: #DIV X, Y : X <- X // Y
         registrador = instrucao[1].strip(',')
         MBR = buscar_operando(memoria_volatil, instrucao[2])
@@ -249,7 +271,7 @@ def executar_salto(arq: io.TextIOWrapper, instrucao: list[str], offset_inst: int
         #ao fim, o offset do inicio da linha correspondente ao endereço de PC é atualizado e levado para a leitura das proximas instruções
 
 def executar_salto_zero(arq: io.TextIOWrapper, instrucao: list[str], offset_inst: int):
-    ''' JUMP+ X : PC <- X
+    ''' JUMP+ X : PC <- X (AC = 0)
     Executa um salto na execução sequencial das instruções se o AC for 0.'''
     global PC, AC, OFFSET_ARQ
     if AC == 0:
@@ -310,7 +332,7 @@ def main():
         PC = arq.readline().strip('\n') #primeiro endereco do PC -> primeira linha pós-memória (tira o \n da quebra)
         OFFSET_ARQ = arq.tell() #offset após ler o PC
         print("Endereço da próxima instrução -> PC:", PC, "\n") #printa o primeiro endereco de PC
-        for i in range(13):
+        for i in range(11):
             IR, OFFSET_ARQ = le_instrucao(arq) #busca a proxima instrução (do endereço de PC) -> carrega em IR, incrementa PC e retorna o offset da próxima linha
             instrucoes(memoria_volatil, IR, arq, offset_inst) #usam os dados da "memoria_volatil" para executar a instrução de "IR".
             print("Endereço da próxima instrução -> PC: ", PC, "\n")

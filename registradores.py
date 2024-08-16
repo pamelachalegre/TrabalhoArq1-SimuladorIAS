@@ -36,14 +36,14 @@ def buscar_operando(memoria_volatil: list[str], referencia: str) -> int:
     if referencia[:2] == '0X': #se for um endereco -> endereçamento direto
         i = 0
         palavra = memoria_volatil[i].strip('\n').split(sep=' ') #pega a palavra aramazenada e divide endereco do dado
-        while palavra[0] != referencia and i < len(memoria_volatil):
+        while palavra[0] != referencia and i < len(memoria_volatil) - 1:
             i += 1
-            palavra = palavra = memoria_volatil[i].strip('\n').split(sep=' ')
+            palavra = memoria_volatil[i].strip('\n').split(sep=' ')
         
-        if i < len(memoria_volatil): 
+        if palavra[0] == referencia: 
             return int(palavra[1])
         else:
-            print('Endereço não encontrado!')
+            raise ValueError('Endereço não encontrado!')
     else: #se for enderecamento imediato -> o operando faz parte da instrucao
         return int(referencia)
 
@@ -120,7 +120,7 @@ def executar_soma(memoria_volatil: list[str], instrucao: list[str]):
     parametro = instrucao[1].strip(',')
     if len(instrucao) == 2: #ADD X : AC <- AC + X
         BARRA_DADOS = buscar_registrador(memoria_volatil, parametro)
-        print("AC =", AC, "+", MBR, end=' ')
+        print("AC =", AC, "+", BARRA_DADOS, end=' ')
         AC += BARRA_DADOS
         print("=", AC)
     else: #ADD X, Y : X <- X + Y
@@ -276,7 +276,7 @@ def main():
         PC = arq.readline().strip('\n') #primeiro endereco do PC -> primeira linha pós-memória (tira o \n da quebra)
         OFFSET_ARQ = arq.tell() #offset após ler o PC
         print("Endereço da próxima instrução -> PC:", PC, "\n") #printa o primeiro endereco de PC
-        for i in range(5):
+        for i in range(11):
             IR, OFFSET_ARQ = le_instrucao(arq) #busca a proxima instrução (do endereço de PC) -> carrega em IR, incrementa PC e retorna o offset da próxima linha
             instrucoes(memoria_volatil, IR, arq, offset_inst) #usam os dados da "memoria_volatil" para executar a instrução de "IR".
             print("Endereço da próxima instrução -> PC: ", PC, "\n")
