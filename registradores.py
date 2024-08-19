@@ -11,6 +11,8 @@ import io
 AC: int = 0 #acumulador
 MQ: int = 1 #multiplicador
 R: int #resto da divisao
+C: int # Carry out (1: houve carry; 2: não houve carry)
+Z: int # Resultado zero (-1: resultado negativo; 0: resultado igual a zero; 1: resultado positivo)
 #registradores que armazenam partes da instrucao:
 PC: str
 IR: str
@@ -269,7 +271,8 @@ def le_instrucao(arq: io.TextIOWrapper) -> tuple[str, int]:
 def main():
     try:
         global PC, IR, OFFSET_ARQ, GERAL_A, GERAL_B, GERAL_C, MBR, AC, MQ
-        arq = open('memoria.txt', 'r+')
+        arq = input("\nDigite o nome (com extensão .txt) do arquivo de memória a ser executado: ")
+        arq = open(arq, 'r+')
         memoria_volatil, OFFSET_ARQ = contar_memoria(arq) #retorna os elementos da memória em forma de lista, pega o primeiro valor de PC (primeira linha pós memória) e o offset da próxima linha
         offset_inst = OFFSET_ARQ #variável para o primeiro offset das instruções
 
@@ -282,8 +285,9 @@ def main():
             print("Endereço da próxima instrução -> PC: ", PC, "\n")
 
         arq.close()
-    except:
-        raise ValueError("Arquivo \'memoria.txt\' não encontrado.")
+
+    except FileNotFoundError:
+        print(f"\nArquivo '{arq}' não encontrado.\n")
 
 if __name__ == '__main__':
     main()
