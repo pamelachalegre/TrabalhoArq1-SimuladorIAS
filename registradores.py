@@ -11,8 +11,8 @@ import io
 AC: int = 0 #acumulador
 MQ: int = 1 #multiplicador
 R: int #resto da divisao
-C: int # Carry out (1: houve carry; 2: não houve carry)
-Z: int # Resultado zero (-1: resultado negativo; 0: resultado igual a zero; 1: resultado positivo)
+C: int = 0 # Carry out (1: houve carry; 0: não houve carry) -> MAX: 10 BITS -> 1024 e -1023
+Z: int = 0 # Resultado zero (0: resultado diferente de 0; 1: resultado igual a zero)
 #registradores que armazenam partes da instrucao:
 PC: str
 IR: str
@@ -25,6 +25,19 @@ OFFSET_ARQ: int #variavel para manipulação do arquivo
 USO_ULA: int
 BARRA_DADOS: int
 
+def analisar_resultado(resultado: int):
+    global C, Z
+    if -1023 < resultado < 1024: #se estiver dentro do limite estipulado -> 10 bits
+        C = 0 # não há carry
+        if resultado == 0: #se o resultado for 0:
+            Z = 1 #Z passa para 0
+        else:
+            Z = 0
+    else: #se estiver fora dos limites de 10 bits
+        C = 1 #há carry
+        Z = 0 #e o resultado não é zero
+    print("Análise do Resultado : Z =", Z, " | C =", C)
+
 def carregar_memoria(arq: io.TextIOWrapper) -> tuple[list[str], int]:
     global PC
     '''conta quantas linhas tem o arquivo'''
@@ -36,31 +49,27 @@ def carregar_memoria(arq: io.TextIOWrapper) -> tuple[list[str], int]:
     return memoria_volatil_dados, arq.tell() #offset -> onde vão começar as instruções reais
 
 def buscar_endereco(memoria_volatil: list[str], referencia: str) -> tuple[int, int, bool]:
-    '''busca o endereco na memoria e retorna o dado que esta nele, se for endereçamento direto. 
-    Caso seja imediato, retorna o proprio dado'''
+    '''Busca o endereco "referencia" na memoria e retorna o dado e sua posição na memória volátil se for endereçamento direto. 
+    Caso seja endereçamento imediato, retorna o proprio dado.'''
     global MAR
-    if referencia[:2] == '0X': #se for um endereco -> endereçamento direto
-        MAR = referencia #o mar recebe o endereço a ser encontrado
+    if referencia[:2] == '0X': # Se for um endereco -> endereçamento direto
+        MAR = referencia #o MAR recebe o endereço a ser encontrado
         print("Busca do operando -> MAR:", MAR)
-        i = 0
-        palavra = memoria_volatil[i].strip('\n').split(sep=' ') #pega a palavra aramazenada e divide endereco do dado
-        while palavra[0] != referencia and i < len(memoria_volatil) - 1:
-            i += 1
-            palavra = memoria_volatil[i].strip('\n').split(sep=' ')
+        i = int(referencia, 16) #transforma o endereço hexadecimal em INTEIRO  -> O endereço inicial é o 0X00 que corresponde ao índice 0 da memória volátil.
+        palavra = memoria_volatil[i].strip('\n').split(sep=' ') #pega a palavra aramazenada no endereço correto e divide (endereco e dado).
         
-        if palavra[0] == referencia and len(palavra) == 2:
-            # existe um dado no endereço *referencia*
-            return int(palavra[1]), i, True # dado, posição na lista, bool
-        elif palavra[0] == referencia and len(palavra) == 1:
-            # não existe um dado no endereço *referencia*
-            return -1, i, True # nulo, posição na lista, bool
-        else:
+        if palavra[0] == referencia and len(palavra) == 2: # Se existe um dado no endereço *referencia*
+            return int(palavra[1]), i, True # dado, posição na memória volátil, achou
+        elif palavra[0] == referencia and len(palavra) == 1: # Se não existe um dado no endereço *referencia*
+            return -1, i, True # dado nulo, posição na memória volátil, achou
+        else: # Se o endereço não foi encontrado
             print("Endereço não encontrado")
     else: #se for enderecamento imediato -> o operando faz parte da instrucao
-        return int(referencia), -1, True
+        return int(referencia), -1, True # operando, índice inválido, achou
 
 def buscar_referencia(memoria_volatil: list[str], parametro: str) -> int:
-    global MQ, GERAL_A, GERAL_B, GERAL_C, MBR
+    '''Determina qual dado de registrador ou dado de memória a instrução precisa e o retorna'''
+    global MQ, GERAL_A, GERAL_B, GERAL_C, MBR, R
     if parametro == 'A':
         return GERAL_A
     elif parametro == 'B':
@@ -69,6 +78,8 @@ def buscar_referencia(memoria_volatil: list[str], parametro: str) -> int:
         return GERAL_C
     elif parametro == 'MQ':
         return MQ
+    elif parametro == 'R':
+        return R
     else:
         MBR, _, achou = buscar_endereco(memoria_volatil, parametro)
         if achou:
@@ -76,6 +87,7 @@ def buscar_referencia(memoria_volatil: list[str], parametro: str) -> int:
             return MBR
 
 def atualizar_registrador(parametro: str, valor: int):
+    '''Atualiza o registrador correto com seu novo valor (resultante da instrução executada).'''
     global MQ, GERAL_A, GERAL_B, GERAL_C
     if parametro == 'A':
         GERAL_A = valor
@@ -88,7 +100,7 @@ def atualizar_registrador(parametro: str, valor: int):
 
 def executar_LOAD(memoria_volatil: list[str], instrucao: list[str]) -> None: 
     ''' LOAD X | LOAD X, Y
-    Carrega o valor da memória no acumulador (AC) ou em outro registrador especificado. '''
+    Carrega um valor da memória no acumulador (AC) ou em outro registrador especificado.'''
     global MBR, AC, MQ, GERAL_A, GERAL_B, GERAL_C
     if len(instrucao) == 2: #LOAD X : AC <- X
         MBR, _, achou = buscar_endereco(memoria_volatil, instrucao[1]) #busca o dado que esta no endereco
@@ -116,7 +128,7 @@ def executar_LOAD(memoria_volatil: list[str], instrucao: list[str]) -> None:
 
 def executar_MOV(instrucao: list[str]) -> None:
     ''' MOV X | MOV X, Y 
-    Move dados de um registrador para outro. '''
+    Move dados de um registrador para outro.'''
     global AC, MQ, GERAL_A, GERAL_B, GERAL_B, GERAL_C
     registrador = instrucao[1].strip(',') #Registrador X (elemento obrigatório)
     if len(instrucao) == 2: #MOV X : AC <- X (o valor de X vai para o AC)
@@ -138,6 +150,7 @@ def executar_ADD(memoria_volatil: list[str], instrucao: list[str]):
         print("AC =", AC, "+", BARRA_DADOS, end=' ')
         AC += BARRA_DADOS
         print("=", AC)
+        analisar_resultado(AC)
     else: #ADD X, Y : X <- X + Y
         USO_ULA = buscar_referencia(memoria_volatil, parametro)
         BARRA_DADOS = buscar_referencia(memoria_volatil, instrucao[2])
@@ -146,6 +159,7 @@ def executar_ADD(memoria_volatil: list[str], instrucao: list[str]):
         print("=", USO_ULA)
         atualizar_registrador(parametro, USO_ULA)
         print("Memória volátil:", memoria_volatil)
+        analisar_resultado(USO_ULA)
 
 def executar_SUB(memoria_volatil: list[str], instrucao: list[str]):
     ''' SUB X | SUB X, Y 
@@ -157,6 +171,7 @@ def executar_SUB(memoria_volatil: list[str], instrucao: list[str]):
         print("AC =", AC, "-", BARRA_DADOS, end=' ')
         AC -= BARRA_DADOS
         print("=", AC)
+        analisar_resultado(AC)
     else: # SUB X, Y : X <- X - Y
         USO_ULA = buscar_referencia(memoria_volatil, parametro)
         BARRA_DADOS = buscar_referencia(memoria_volatil, instrucao[2])
@@ -164,6 +179,7 @@ def executar_SUB(memoria_volatil: list[str], instrucao: list[str]):
         USO_ULA -= BARRA_DADOS
         atualizar_registrador(parametro, USO_ULA)
         print("=", USO_ULA)
+        analisar_resultado(USO_ULA)
 
 def executar_MULT(memoria_volatil: list[str], instrucao: list[str]):
     ''' MULT X | MULT X, Y
@@ -175,6 +191,7 @@ def executar_MULT(memoria_volatil: list[str], instrucao: list[str]):
         print("MQ =", MQ, "*", BARRA_DADOS, end=' ')
         MQ *= BARRA_DADOS
         print("=", MQ)
+        analisar_resultado(MQ)
     else: # MULT X, Y : X <- X * Y
         USO_ULA = buscar_referencia(memoria_volatil, parametro)
         BARRA_DADOS = buscar_referencia(memoria_volatil, instrucao[2])
@@ -182,13 +199,12 @@ def executar_MULT(memoria_volatil: list[str], instrucao: list[str]):
         USO_ULA *= BARRA_DADOS
         atualizar_registrador(parametro, USO_ULA)
         print("=", USO_ULA)
+        analisar_resultado(USO_ULA)
 
 def executar_DIV(memoria_volatil: list[str], instrucao: list[str]):
     ''' DIV X | DIV X, Y
     Divide o AC ou um registrador específico (Y) por um dado X
-    Divide o valor em AC pelo valor armazenado no endere¸co X da mem´oria.
-    Coloca o quociente em MQ e o resto em AC
-    Tem que arrumar ainda !
+    Divide o valor em AC pelo valor armazenado no endereco X da memoria.
     '''
     global AC, R, USO_ULA, BARRA_DADOS
     parametro = instrucao[1].strip(',')
@@ -201,6 +217,7 @@ def executar_DIV(memoria_volatil: list[str], instrucao: list[str]):
             R = AC % BARRA_DADOS
             AC //= BARRA_DADOS
             print(f"= {AC} (com resto R = {R})")
+            analisar_resultado(AC)
     else: # DIV X, Y : X <- X // Y
         USO_ULA = buscar_referencia(memoria_volatil, parametro)
         BARRA_DADOS = buscar_referencia(memoria_volatil, instrucao[2])
@@ -212,9 +229,10 @@ def executar_DIV(memoria_volatil: list[str], instrucao: list[str]):
             USO_ULA //= BARRA_DADOS
             print(f"= {USO_ULA} (com resto R = {R})")
             atualizar_registrador(parametro, USO_ULA)
+            analisar_resultado(USO_ULA)
 
 def executar_STOR(memoria_volatil: list[str], instrucao: list[str], arq: io.TextIOWrapper) -> None:
-    ''' 
+    ''' Armazena um dado de um registrador na memória volátil.
     STOR 0X05      -> len(instrucao) = 2 -> escreve o AC na posição 0X05 : 0X05 <- AC
     STOR 0X01, A   -> len(instrucao) = 3 -> escreve A na posição 0X01 : 0X01 <- A
     '''
@@ -222,7 +240,7 @@ def executar_STOR(memoria_volatil: list[str], instrucao: list[str], arq: io.Text
     MAR = instrucao[1].strip(',') # posição de memória que é pra escrever -> 0x05
     dado, posicao, encontrado = buscar_endereco(memoria_volatil, MAR) # busca se o MAR está na memoria_volatil
     if encontrado: # se o endereço de memória que queremos escrever existe na memória
-        if len(instrucao) == 2: # escrever AC na posicao X
+        if len(instrucao) == 2: # STOR X : X <- AC
             # ir para a linha/posição do MAR
             print(memoria_volatil[posicao], "->", end=' ')
             if dado == -1:
@@ -233,7 +251,7 @@ def executar_STOR(memoria_volatil: list[str], instrucao: list[str], arq: io.Text
                 memoria_volatil[posicao][1] = str(AC) + '\n'
                 memoria_volatil[posicao] = ' '.join(memoria_volatil[posicao])
 
-        elif len(instrucao) == 3: # STOR X, Y  :  escreve Y na posição X : X <- Y
+        elif len(instrucao) == 3: # STOR X, Y : X <- Y
             registrador = buscar_referencia([], instrucao[2])
             if dado == -1:
                 memoria_volatil[posicao] = memoria_volatil[posicao].strip('\n')
@@ -300,7 +318,7 @@ def executar_RSH() -> None:
     AC = AC >> 1 #desloca o conteúdo de AC uma posição à direita
     print(f"AC = {AC} -> AC / 2 (>> RSH)")
 
-def instrucoes(memoria_volatil: list[str], instrucao: str, arq: io.TextIOWrapper, offset_inst: int) -> None:
+def executar_instrucao(memoria_volatil: list[str], instrucao: str, arq: io.TextIOWrapper, offset_inst: int) -> None:
     global IR
     instrucao = instrucao.split(' ')
     IR = instrucao[0]
@@ -322,14 +340,13 @@ def instrucoes(memoria_volatil: list[str], instrucao: str, arq: io.TextIOWrapper
     elif IR == 'JUMP+':
         executar_JUMP_zero(arq, instrucao, offset_inst)
     elif IR == 'STOR':
-        print(instrucao)
         executar_STOR(memoria_volatil, instrucao, arq)
     elif IR == 'LSH':
         executar_LSH()
     elif IR == 'RSH':
         executar_RSH()
     else:
-        print(f"Instrução inválida!")
+        print("Instrução inválida! Executando a próxima instruçao:")
 
 def buscar_instrucao(arq: io.TextIOWrapper) -> tuple[str, int]:
     global PC, MAR
@@ -337,17 +354,17 @@ def buscar_instrucao(arq: io.TextIOWrapper) -> tuple[str, int]:
     MAR = PC #endereço da instrução a ser executada -> apontada por PC
     arq.seek(OFFSET_ARQ, 0) #pula a memoria e as instruções já executadas
     instrucao = arq.readline().strip('\n') # le a próxima instrução
-    PC = str(hex(int(PC, 16) + 1)).upper() #incrementa o pc (sim, joguei no google como somar está porra 1 a 1)
-    return instrucao, arq.tell() #instrução lida, pc incrementado, offset da proxima instrucao (próxima linha)
+    PC = str(hex(int(PC, 16) + 1)).upper() #incrementa o PC
+    return instrucao, arq.tell() #instrução lida, offset da proxima instrucao (próxima linha)
 
 def main():
     try:
         global PC, IR, OFFSET_ARQ, MAR
         #arq = input("\nDigite o nome (com extensão .txt) do arquivo de memória a ser executado: ")
         #arq = open(arq, 'r+')
-        arq = open('media.txt', 'r+')
+        arq = open('memoria.txt', 'r+')
         memoria_volatil_dados, OFFSET_ARQ = carregar_memoria(arq) #retorna os elementos da memória em forma de lista, pega o primeiro valor de PC (primeira linha pós memória) e o offset da próxima linha
-        offset_inst = OFFSET_ARQ #variável para o primeiro offset das instruções
+        comeco = OFFSET_ARQ #variável para o primeiro offset das instruções
 
         PC = arq.readline().strip('\n') #primeiro endereco do PC -> primeira linha pós-memória (tira o \n da quebra)
         OFFSET_ARQ = arq.tell() #offset após ler o PC
@@ -356,11 +373,11 @@ def main():
         while MBR != '':
             print("Busca da instrução -> Endereço -> MAR:", MAR)
             print("MBR:", MBR)
-            instrucoes(memoria_volatil_dados, MBR, arq, offset_inst) #usam os dados da "memoria_volatil" para executar a instrução de "MBR".
+            executar_instrucao(memoria_volatil_dados, MBR, arq, comeco) #usam os dados da "memoria_volatil" para executar a instrução de "MBR".
             print("Endereço da próxima instrução -> PC: ", PC, "\n")
             MBR, OFFSET_ARQ = buscar_instrucao(arq) #busca a proxima instrução (do endereço de PC) -> carrega em MBR, incrementa PC e retorna o offset da próxima linha
 
-        arq.seek(offset_inst)
+        arq.seek(comeco)
         memoria_volatil_instrucoes = arq.readlines() #pega todas as instruções do arquivo e guarda em uma memoria volátil
         arq.seek(0)
         for i in range(len(memoria_volatil_dados)):
