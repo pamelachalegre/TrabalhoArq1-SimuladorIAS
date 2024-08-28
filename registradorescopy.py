@@ -36,7 +36,7 @@ def analisar_resultado(resultado: int):
     else: #se estiver fora dos limites de 10 bits
         C = 1 #há carry
         Z = 0 #e o resultado não é zero
-    print("Análise do Resultado : Z =", Z, " | C =", C)
+    print("Análise do Resultado : Z =", Z, "| C =", C)
 
 def carregar_memoria(arq: io.TextIOWrapper) -> tuple[list[str], int]:
     global PC
@@ -48,7 +48,7 @@ def carregar_memoria(arq: io.TextIOWrapper) -> tuple[list[str], int]:
         linha = arq.readline()
     return memoria_volatil_dados, arq.tell() #offset -> onde vão começar as instruções reais
 
-def buscar_endereco(memoria_volatil: list[str], referencia: str) -> tuple[int, int, bool]:
+def buscar_endereco(memoria_volatil: list[str], referencia: str) -> int:
     '''Busca o endereco "referencia" na memoria e retorna o dado e sua posição na memória volátil se for endereçamento direto. 
     Caso seja endereçamento imediato, retorna o proprio dado.'''
     global MAR
@@ -56,16 +56,17 @@ def buscar_endereco(memoria_volatil: list[str], referencia: str) -> tuple[int, i
         MAR = referencia #o MAR recebe o endereço a ser encontrado
         print("Busca do operando -> MAR:", MAR)
         i = int(referencia, 16) #transforma o endereço hexadecimal em INTEIRO  -> O endereço inicial é o 0X00 que corresponde ao índice 0 da memória volátil.
+        print("Endereço de busca:", i)
         palavra = memoria_volatil[i].strip('\n').split(sep=' ') #pega a palavra aramazenada no endereço correto e divide (endereco e dado).
         
         if palavra[0] == referencia and len(palavra) == 2: # Se existe um dado no endereço *referencia*
-            return int(palavra[1]), i, True # dado, posição na memória volátil, achou
+            return int(palavra[1]) # dado, posição na memória volátil, achou
         elif palavra[0] == referencia and len(palavra) == 1: # Se não existe um dado no endereço *referencia*
-            return -1, i, True # dado nulo, posição na memória volátil, achou
+            return -1 # dado nulo, posição na memória volátil, achou
         else: # Se o endereço não foi encontrado
-            print("Endereço não encontrado")
+            raise ValueError("Endereço não encontrado")
     else: #se for enderecamento imediato -> o operando faz parte da instrucao
-        return int(referencia), -1, True # operando, índice inválido, achou
+        return int(referencia) # operando, índice inválido, achou
 
 def buscar_referencia(memoria_volatil: list[str], parametro: str) -> int:
     '''Determina qual dado de registrador ou dado de memória a instrução precisa e o retorna'''
@@ -81,10 +82,9 @@ def buscar_referencia(memoria_volatil: list[str], parametro: str) -> int:
     elif parametro == 'R':
         return R
     else:
-        MBR, _, achou = buscar_endereco(memoria_volatil, parametro)
-        if achou:
-            print("MBR:", MBR)
-            return MBR
+        MBR = buscar_endereco(memoria_volatil, parametro)
+        print("MBR:", MBR)
+        return MBR
 
 def atualizar_registrador(parametro: str, valor: int):
     '''Atualiza o registrador correto com seu novo valor (resultante da instrução executada).'''
@@ -103,28 +103,26 @@ def executar_LOAD(memoria_volatil: list[str], instrucao: list[str]) -> None:
     Carrega um valor da memória no acumulador (AC) ou em outro registrador especificado.'''
     global MBR, AC, MQ, GERAL_A, GERAL_B, GERAL_C
     if len(instrucao) == 2: #LOAD X : AC <- X
-        MBR, _, achou = buscar_endereco(memoria_volatil, instrucao[1]) #busca o dado que esta no endereco
-        if achou:
-            print("MBR:", MBR)
-            AC = MBR #AC recebe o valor pego na memória por MBR
-            print("AC =", AC)
+        MBR = buscar_endereco(memoria_volatil, instrucao[1]) #busca o dado que esta no endereco
+        print("MBR:", MBR)
+        AC = MBR #AC recebe o valor pego na memória por MBR
+        print("AC =", AC)
     else: #LOAD X, Y : X <- Y
         registrador = instrucao[1].strip(',')
-        MBR, _, achou = buscar_endereco(memoria_volatil, instrucao[2]) #busca o dado que esta no endereco
-        if achou:
-            print("MBR:", MBR)
-            if registrador == 'MQ':
-                MQ = MBR
-                print("MQ =", MQ)
-            elif registrador == 'A':
-                GERAL_A = MBR
-                print("Registrador A =", GERAL_A)
-            elif registrador == 'B':
-                GERAL_B = MBR
-                print("Registrador B =", GERAL_B)
-            elif registrador == 'C':
-                GERAL_C = MBR
-                print("Registrador C =", GERAL_C)
+        MBR = buscar_endereco(memoria_volatil, instrucao[2]) #busca o dado que esta no endereco
+        print("MBR:", MBR)
+        if registrador == 'MQ':
+            MQ = MBR
+            print("MQ =", MQ)
+        elif registrador == 'A':
+            GERAL_A = MBR
+            print("Registrador A =", GERAL_A)
+        elif registrador == 'B':
+            GERAL_B = MBR
+            print("Registrador B =", GERAL_B)
+        elif registrador == 'C':
+            GERAL_C = MBR
+            print("Registrador C =", GERAL_C)
 
 def executar_MOV(instrucao: list[str]) -> None:
     ''' MOV X | MOV X, Y 
@@ -238,30 +236,31 @@ def executar_STOR(memoria_volatil: list[str], instrucao: list[str], arq: io.Text
     '''
     global MAR, AC
     MAR = instrucao[1].strip(',') # posição de memória que é pra escrever -> 0x05
-    dado, posicao, encontrado = buscar_endereco(memoria_volatil, MAR) # busca se o MAR está na memoria_volatil
-    if encontrado: # se o endereço de memória que queremos escrever existe na memória
-        if len(instrucao) == 2: # STOR X : X <- AC
-            # ir para a linha/posição do MAR
-            print(memoria_volatil[posicao], "->", end=' ')
-            if dado == -1:
-                memoria_volatil[posicao] = memoria_volatil[posicao].strip('\n')
-                memoria_volatil[posicao] += ' ' + str(AC) + '\n'
-            else:
-                memoria_volatil[posicao] = memoria_volatil[posicao].split(' ')
-                memoria_volatil[posicao][1] = str(AC) + '\n'
-                memoria_volatil[posicao] = ' '.join(memoria_volatil[posicao])
+    dado = buscar_endereco(memoria_volatil, MAR) # busca se o MAR está na memoria_volatil
+    # se o endereço de memória que queremos escrever existe na memória
+    posicao = int(MAR, 16) #transforma o endereço hexadecimal em INTEIRO -> O endereço inicial é o 0X00 que corresponde ao índice 0 da memória volátil.
+    if len(instrucao) == 2: # STOR X : X <- AC
+        # ir para a linha/posição do MAR
+        print(memoria_volatil[posicao], "->", end=' ')
+        if dado == -1:
+            memoria_volatil[posicao] = memoria_volatil[posicao].strip('\n')
+            memoria_volatil[posicao] += ' ' + str(AC) + '\n'
+        else:
+            memoria_volatil[posicao] = memoria_volatil[posicao].split(' ')
+            memoria_volatil[posicao][1] = str(AC) + '\n'
+            memoria_volatil[posicao] = ' '.join(memoria_volatil[posicao])
 
-        elif len(instrucao) == 3: # STOR X, Y : X <- Y
-            registrador = buscar_referencia([], instrucao[2])
-            if dado == -1:
-                memoria_volatil[posicao] = memoria_volatil[posicao].strip('\n')
-                memoria_volatil[posicao] += ' ' + str(registrador) + '\n'
-            else:
-                memoria_volatil[posicao] = memoria_volatil[posicao].split(' ')
-                memoria_volatil[posicao][1] = str(registrador) + '\n'
-                memoria_volatil[posicao] = ' '.join(memoria_volatil[posicao])
-            
-        print(memoria_volatil[posicao], "\nEscrita feita!")
+    elif len(instrucao) == 3: # STOR X, Y : X <- Y
+        registrador = buscar_referencia([], instrucao[2])
+        if dado == -1:
+            memoria_volatil[posicao] = memoria_volatil[posicao].strip('\n')
+            memoria_volatil[posicao] += ' ' + str(registrador) + '\n'
+        else:
+            memoria_volatil[posicao] = memoria_volatil[posicao].split(' ')
+            memoria_volatil[posicao][1] = str(registrador) + '\n'
+            memoria_volatil[posicao] = ' '.join(memoria_volatil[posicao])
+        
+    print(memoria_volatil[posicao], "\nEscrita feita!")
 
 def executar_JUMP(arq: io.TextIOWrapper, instrucao: list[str], offset_inst: int) -> None:
     ''' JUMP X : PC <- X
