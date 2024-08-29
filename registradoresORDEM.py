@@ -371,9 +371,8 @@ def buscar_instrucao(arq: io.TextIOWrapper) -> tuple[str, int]:
 def main():
     try:
         global PC, IR, OFFSET_ARQ, MAR, GERAL_D
-        #arq = input("\nDigite o nome (com extensão .txt) do arquivo de memória a ser executado: ")
-        #arq = open(arq, 'r+')
-        arq = open('selectionsort.txt', 'r+')
+        arq = input("\nDigite o nome (com extensão .txt) do arquivo de memória a ser executado: ") #pergunta qual o arquivo de operações
+        arq = open(arq, 'r+') #abre o arquivo
         memoria_volatil_dados, OFFSET_ARQ = carregar_memoria(arq) #retorna os elementos da memória em forma de lista, pega o primeiro valor de PC (primeira linha pós memória) e o offset da próxima linha
         comeco = OFFSET_ARQ #variável para o primeiro offset das instruções
 
