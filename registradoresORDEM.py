@@ -384,7 +384,6 @@ def main():
             print("Busca da instrução -> Endereço -> MAR:", MAR)
             print("MBR:", MBR)
             executar_instrucao(memoria_volatil_dados, MBR, arq, comeco) #usam os dados da "memoria_volatil" para executar a instrução de "MBR".
-            print("GERAL D ============= ", GERAL_D)
             print("Endereço da próxima instrução -> PC: ", PC, "\n")
             MBR, OFFSET_ARQ = buscar_instrucao(arq) #busca a proxima instrução (do endereço de PC) -> carrega em MBR, incrementa PC e retorna o offset da próxima linha
 

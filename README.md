@@ -6,6 +6,15 @@ aqui será explicado o que é o ias
 
 aqui será explicado o que foi pedido no trabalho e o que fizemos(?)
 
+## Como executar?
+Para executar o simulador do computador IAS, siga os passos abaixo:
+
+1. Execute o script principal do simulador: python registradoresORDEM.py
+
+2. O programa solicitará o nome do arquivo de memória a ser executado. Insira o nome do arquivo, incluindo a extensão .txt.
+
+3. Assim, o simulador irá processar as instruções no arquivo, exibindo o conteúdo dos registradores após cada execução de instrução.
+
 ## Integrantes
 
 | Nome | RA |
