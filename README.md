@@ -1,19 +1,24 @@
 # Simulador do Computador IAS
 
-aqui será explicado o que é o ias
+Este projeto é um simulador do comportamento dos registradores de um processador, inspirado na arquitetura do computador IAS. O simulador executa uma sequência de comandos de linguagem de máquina, armazenando dados em registradores para realizar operações básicas como adição, subtração, multiplicação, divisão, transferência de dados e desvio de fluxo.
+
+O computador IAS foi o primeiro computador eletrônico, desenvolvido pelo Instituto de Estudos Avançados de Princeton (IAS). Ele era uma máquina binária, com uma palavra de 40 bits de comprimento, na qual era possível armazenar duas instruções de 20 bits. O IAS foi criado para diminuir o tempo necessário para executar instruções. Além disso, ele permitiu armazenar instruções e dados na mesma memória.
 
 ## Descrição
 
-aqui será explicado o que foi pedido no trabalho e o que fizemos(?)
+O objetivo deste projeto foi desenvolver um programa que simula o comportamento dos registradores de um processador durante a execução de um ciclo de instrução. Todas as instruções e dados necessários para a simulação são armazenados em memória RAM e o conteúdo dos registradores é exibido após cada instrução.
+
+O simulador executa o algoritmo de ordenação por Seleção (Selection Sort) e o algoritmo do cálculo de média, o qual foi escolhido pelo grupo. As instruções para cada algoritmo são fornecidas através de um arquivo texto, onde os dados e a sequência de comandos são especificados.
 
 ## Como executar?
+
 Para executar o simulador do computador IAS, siga os passos abaixo:
 
 1. Execute o script principal do simulador: python registradoresORDEM.py
 
 2. O programa solicitará o nome do arquivo de memória a ser executado. Insira o nome do arquivo, incluindo a extensão .txt.
 
-3. Assim, o simulador irá processar as instruções no arquivo, exibindo o conteúdo dos registradores após cada execução de instrução.
+3. Dessa forma, o simulador processará as instruções no arquivo e exibirá na tela o conteúdo dos registradores e as micro-operações realizadas em cada etapa.
 
 ## Integrantes
 
@@ -68,9 +73,37 @@ escrever maisssss ...??
 
 ### Principais
 
-executar_LOAD
+executar_LOAD: Carrega um valor da memória no acumulador ou em outro registrador especificado.
+
+executar_ADD: Soma um dado ao acumulador ou a outro registrador especificado.
+
+executar_SUB: Subtrai um dado do acumulador ou de outro registrador especificado.
+
+executar_MULT: Multiplica um dado pelo MQ ou outro registrador especificado.
+
+executar_DIV: Divide o acumulador ou um registrador específico por um dado.
+
+executar_STOR: Armazena um dado de um registrador na memória volátil. Pode armazenar o valor do AC ou de outro registrador em um endereço de memória especificado.
+
+executar_JUMP: Executa um salto na execução das instruções, alterando o PC para o endereço especificado.
+
+executar_JUMP_zero: Executa um salto na execução das instruções se o valor do acumulador for maior ou igual a zero.
+
+executar_LSH: Desloca os bits do registrador AC para a esquerda (LSH - Left Shift), equivalente a multiplicar o valor em AC por 2.
+
+executar_RSH: Desloca os bits do registrador AC para a direita (RSH - Right Shift), equivalente a dividir o valor em AC por 2.
 
 ### Auxiliares
+
+analisar_resultado: Verifica se o resultado da operação está dentro dos limites e ajusta os registradores de carry (C) e zero (Z) conforme necessário.
+
+carregar_memoria: Lê o arquivo de memória e carrega os dados na memória volátil. Retorna os dados e o offset onde começam as instruções reais.
+
+buscar_endereco: Busca o endereço na memória volátil e retorna o dado correspondente ou o próprio dado se for endereçamento imediato.
+
+buscar_referencia: Identifica e retorna o dado necessário da memória ou do registrador conforme a instrução.
+
+atualizar_registrador: Atualiza o registrador correto com o novo valor resultante da instrução executada.
 
 ## Referências
 
