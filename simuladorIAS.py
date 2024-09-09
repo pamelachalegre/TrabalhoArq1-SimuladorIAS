@@ -45,14 +45,14 @@ def analisar_resultado(resultado: int) -> None:
         :return None:
     '''
     global C, Z
-    if -1023 < resultado < 1024: #se estiver dentro do limite
-        C = 0 # não há carry
-        if resultado == 0: # se o resultado for 0
+    if -1023 < resultado < 1024:  # Se estiver dentro do limite
+        C = 0  # Não há carry
+        if resultado == 0:  # Se o resultado for 0
             Z = 1
         else:
             Z = 0
-    else: #se estiver fora do limite
-        C = 1 # há carry
+    else:  # Se estiver fora do limite
+        C = 1  # Há carry
         Z = 0
     print("Análise do Resultado:\nZ =", Z, "| C =", C)
 
@@ -90,13 +90,13 @@ def buscar_endereco(memoria_volatil: list[str], endereco: str) -> int | str:
         palavra = memoria_volatil[i].strip('\n').split(sep=' ')  # Pega a palavra armazenada no endereço correto e divide entre endereço e dado
         
         if palavra[0] == MAR and len(palavra) == 2:  # Se existe um dado no endereço *referencia*
-            return palavra[1] # dado
+            return palavra[1]  # Dado
         elif palavra[0] == MAR and len(palavra) == 1: # Se não existe um dado no endereço *referencia*
-            return '-1' # dado nulo
+            return '-1'  # Dado nulo
         else: # Se o endereço não foi encontrado
             raise ValueError("Endereço não encontrado")
-    elif endereco[:2] == '0X': #se for enderecamento imediato -> o operando faz parte da instrucao
-        return endereco # operando
+    elif endereco[:2] == '0X':  # Enderecamento imediato -> o operando faz parte da instrução
+        return endereco  # Operando
     else:
         return endereco
 
@@ -144,10 +144,10 @@ def carregar_memoria(arq: io.TextIOWrapper) -> tuple[list[str], int]:
         :return tuple[list[str], int]: memória volátil de dados e a posição do início das instruções.
     '''
     global PC
-    linha = arq.readline() # contador de linhas do arquivo
+    linha = arq.readline()  # Contador de linhas do arquivo
     memoria_volatil_dados: list[str] = []
-    while linha != '\n': # a memória se separa das instrucoes
-        memoria_volatil_dados.append(linha) # adiciona o dado lido à memoria de dados
+    while linha != '\n':  # Memória se separa das instruções
+        memoria_volatil_dados.append(linha)  # Adiciona o dado lido à memória de dados
         linha = arq.readline()
     offset = arq.tell()
     return memoria_volatil_dados, offset
