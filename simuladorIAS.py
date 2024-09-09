@@ -205,7 +205,94 @@ def executar_MOV(instrucao: list[str]) -> None:
         BARRA_DADOS = buscar_referencia([], fonte)
         atualizar_registrador(registrador, BARRA_DADOS)  # Atualiza o valor no Registrador X
         print(f"{registrador} = {BARRA_DADOS} ({registrador} <- {fonte})")
+
+def executar_STOR(memoria_volatil: list[str], instrucao: list[str], arq: io.TextIOWrapper) -> None:
+    '''
+    Armazena um dado de um registrador na memória volátil. STOR X | STOR X, Y
+        :param list[str] memoria_volatil: -> contém os dados e endereços.
+        :param list[str] instrucao: -> instrução a ser executada.
+        :param io.TextIOWrapper arq: -> arquivo que contém as instruções.
+        :return None:
+    '''
+    global MAR, AC
+    
+    local = instrucao[1].strip(',')  # Posição de memória que ocorrerá escrita
+    if local[:2] == '0X':  # Posição está direta
+        MAR = local
+    else:  # Posição de escrita está armazenada em um registrador
+        MAR = buscar_referencia([], local)  # MAR recebe a posição armazenada no registrador
+
+    dado = buscar_endereco(memoria_volatil, MAR)  # Busca se o endereço MAR está na memoria_volatil
+    posicao = int(MAR, 16)  # Transforma o endereço hexadecimal em inteiro
+    if len(instrucao) == 2:  # STOR X : X <- AC
+        print(memoria_volatil[posicao], "->", end=' ')  # Ir para a linha/posição do MAR
+        if dado == '-1':  # Se não houver um dado escrito nela
+            memoria_volatil[posicao] = memoria_volatil[posicao].strip('\n')
+            memoria_volatil[posicao] += ' ' + str(AC) + '\n'
+        else:  # Se já houver um dado, sobrescrever
+            memoria_volatil[posicao] = memoria_volatil[posicao].split(' ')
+            memoria_volatil[posicao][1] = str(AC) + '\n'
+            memoria_volatil[posicao] = ' '.join(memoria_volatil[posicao])
+
+    elif len(instrucao) == 3:  # STOR X, Y : X <- Y
+        registrador = buscar_referencia([], instrucao[2])
+        if dado == '-1':
+            memoria_volatil[posicao] = memoria_volatil[posicao].strip('\n')
+            memoria_volatil[posicao] += ' ' + str(registrador) + '\n'
+        else:
+            memoria_volatil[posicao] = memoria_volatil[posicao].split(' ')
+            memoria_volatil[posicao][1] = str(registrador) + '\n'
+            memoria_volatil[posicao] = ' '.join(memoria_volatil[posicao])
         
+    print(memoria_volatil[posicao], "\nEscrita feita!")
+
+def executar_JUMP(arq: io.TextIOWrapper, instrucao: list[str], offset_inst: int) -> None:
+    '''
+    Executa um salto na execução sequencial das instruções: JUMP X : PC <- X
+        :param io.TextIOWrapper arq: -> arquivo que contém as instruções.
+        :param list[str] instrucao: -> instrução a ser executada.
+        :param int offset_inst: -> offset do início das instruções.
+        :return None:
+    '''
+    global PC, OFFSET_ARQ
+    PC = instrucao[1]  # Pular para a rotina de instrução -> novo endereço
+    print("Instrução de desvio -> PC:", PC)
+    arq.seek(offset_inst)  # Vai pro começo das instruções
+    OFFSET_ARQ = arq.tell()  # Armazena o offset novo
+    volta = arq.readline().strip('\n')  # Primeiro endereco do PC -> 0X0A
+    contar = volta
+    while contar != PC:  # Se chegou ao endereco desejado
+        OFFSET_ARQ = arq.tell()  # Atualiza o offset daquele endereço
+        contar = str(hex(int(contar, 16) + 1)).upper()  # Incrementa o contador
+        volta = arq.readline().strip('\n')
+        # No fim, o offset do início da linha correspondente ao endereço de PC
+        # É atualizado e levado para a leitura das proximas instruções
+
+def executar_JUMP_zero(arq: io.TextIOWrapper, instrucao: list[str], offset_inst: int) -> None:
+    '''
+    Executa um salto na execução sequencial das instruções se o AC for MAIOR ou igual a 0: JUMP+ X : PC <- X (A >= 0)
+        :param io.TextIOWrapper arq: -> arquivo que contém as instruções.
+        :param list[str] instrucao: -> instrução a ser executada.
+        :param int offset_inst: -> offset do início das instruções.
+        :return None:
+    '''
+    global PC, AC, OFFSET_ARQ
+    if AC >= 0:
+        PC = instrucao[1]  # Pular para a rotina de instrução -> novo endereço
+        print("Instrução de desvio -> PC:", PC)
+        arq.seek(offset_inst)  # Vai pro começo das instruções
+        OFFSET_ARQ = arq.tell()  # Armazena o offset novo
+        volta = arq.readline().strip('\n')  # Primeiro endereco do PC -> 0X0A
+        contar = volta
+        while contar != PC:  # Se chegou ao endereco desejado
+            OFFSET_ARQ = arq.tell()  # Atualiza o offset daquele endereço
+            contar = str(hex(int(contar, 16) + 1)).upper()  # Incrementa o contador
+            volta = arq.readline().strip('\n')
+        # No fim, o offset do início da linha correspondente ao endereço de PC
+        # É atualizado e levado para a leitura das proximas instruções
+    else:
+        print(f"Instrução não executada! Condição não respeitada! (AC = {AC})")
+
 def executar_ADD(memoria_volatil: list[str], instrucao: list[str]) -> None:
     '''
     Soma um dado ao acumulador ou a outro registrador especificado: ADD X | ADD X, Y
@@ -310,93 +397,6 @@ def executar_DIV(memoria_volatil: list[str], instrucao: list[str]) -> None:
             print(f"= {USO_ULA} (com resto R = {R})")
             atualizar_registrador(parametro, USO_ULA)
             analisar_resultado(USO_ULA)
-
-def executar_STOR(memoria_volatil: list[str], instrucao: list[str], arq: io.TextIOWrapper) -> None:
-    '''
-    Armazena um dado de um registrador na memória volátil. STOR X | STOR X, Y
-        :param list[str] memoria_volatil: -> contém os dados e endereços.
-        :param list[str] instrucao: -> instrução a ser executada.
-        :param io.TextIOWrapper arq: -> arquivo que contém as instruções.
-        :return None:
-    '''
-    global MAR, AC
-    
-    local = instrucao[1].strip(',')  # Posição de memória que ocorrerá escrita
-    if local[:2] == '0X':  # Posição está direta
-        MAR = local
-    else:  # Posição de escrita está armazenada em um registrador
-        MAR = buscar_referencia([], local)  # MAR recebe a posição armazenada no registrador
-
-    dado = buscar_endereco(memoria_volatil, MAR)  # Busca se o endereço MAR está na memoria_volatil
-    posicao = int(MAR, 16)  # Transforma o endereço hexadecimal em inteiro
-    if len(instrucao) == 2:  # STOR X : X <- AC
-        print(memoria_volatil[posicao], "->", end=' ')  # Ir para a linha/posição do MAR
-        if dado == '-1':  # Se não houver um dado escrito nela
-            memoria_volatil[posicao] = memoria_volatil[posicao].strip('\n')
-            memoria_volatil[posicao] += ' ' + str(AC) + '\n'
-        else:  # Se já houver um dado, sobrescrever
-            memoria_volatil[posicao] = memoria_volatil[posicao].split(' ')
-            memoria_volatil[posicao][1] = str(AC) + '\n'
-            memoria_volatil[posicao] = ' '.join(memoria_volatil[posicao])
-
-    elif len(instrucao) == 3:  # STOR X, Y : X <- Y
-        registrador = buscar_referencia([], instrucao[2])
-        if dado == '-1':
-            memoria_volatil[posicao] = memoria_volatil[posicao].strip('\n')
-            memoria_volatil[posicao] += ' ' + str(registrador) + '\n'
-        else:
-            memoria_volatil[posicao] = memoria_volatil[posicao].split(' ')
-            memoria_volatil[posicao][1] = str(registrador) + '\n'
-            memoria_volatil[posicao] = ' '.join(memoria_volatil[posicao])
-        
-    print(memoria_volatil[posicao], "\nEscrita feita!")
-
-def executar_JUMP(arq: io.TextIOWrapper, instrucao: list[str], offset_inst: int) -> None:
-    '''
-    Executa um salto na execução sequencial das instruções: JUMP X : PC <- X
-        :param io.TextIOWrapper arq: -> arquivo que contém as instruções.
-        :param list[str] instrucao: -> instrução a ser executada.
-        :param int offset_inst: -> offset do início das instruções.
-        :return None:
-    '''
-    global PC, OFFSET_ARQ
-    PC = instrucao[1]  # Pular para a rotina de instrução -> novo endereço
-    print("Instrução de desvio -> PC:", PC)
-    arq.seek(offset_inst)  # Vai pro começo das instruções
-    OFFSET_ARQ = arq.tell()  # Armazena o offset novo
-    volta = arq.readline().strip('\n')  # Primeiro endereco do PC -> 0X0A
-    contar = volta
-    while contar != PC:  # Se chegou ao endereco desejado
-        OFFSET_ARQ = arq.tell()  # Atualiza o offset daquele endereço
-        contar = str(hex(int(contar, 16) + 1)).upper()  # Incrementa o contador
-        volta = arq.readline().strip('\n')
-        # No fim, o offset do início da linha correspondente ao endereço de PC
-        # É atualizado e levado para a leitura das proximas instruções
-
-def executar_JUMP_zero(arq: io.TextIOWrapper, instrucao: list[str], offset_inst: int) -> None:
-    '''
-    Executa um salto na execução sequencial das instruções se o AC for MAIOR ou igual a 0: JUMP+ X : PC <- X (A >= 0)
-        :param io.TextIOWrapper arq: -> arquivo que contém as instruções.
-        :param list[str] instrucao: -> instrução a ser executada.
-        :param int offset_inst: -> offset do início das instruções.
-        :return None:
-    '''
-    global PC, AC, OFFSET_ARQ
-    if AC >= 0:
-        PC = instrucao[1]  # Pular para a rotina de instrução -> novo endereço
-        print("Instrução de desvio -> PC:", PC)
-        arq.seek(offset_inst)  # Vai pro começo das instruções
-        OFFSET_ARQ = arq.tell()  # Armazena o offset novo
-        volta = arq.readline().strip('\n')  # Primeiro endereco do PC -> 0X0A
-        contar = volta
-        while contar != PC:  # Se chegou ao endereco desejado
-            OFFSET_ARQ = arq.tell()  # Atualiza o offset daquele endereço
-            contar = str(hex(int(contar, 16) + 1)).upper()  # Incrementa o contador
-            volta = arq.readline().strip('\n')
-        # No fim, o offset do início da linha correspondente ao endereço de PC
-        # É atualizado e levado para a leitura das proximas instruções
-    else:
-        print(f"Instrução não executada! Condição não respeitada! (AC = {AC})")
 
 def executar_LSH() -> None:
     '''
