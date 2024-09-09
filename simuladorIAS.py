@@ -100,6 +100,20 @@ def buscar_endereco(memoria_volatil: list[str], endereco: str) -> int | str:
     else:
         return endereco
 
+def buscar_instrucao(arq: io.TextIOWrapper) -> tuple[str, int]:
+    '''
+    Busca a próxima instrução no endereço apontado por PC.
+        :param io.TextIOWrapper arq: -> arquivo que contém as instruções.
+        :return tuple[str, int]: -> instrução lida e offset da próxima instrução (linha seguinte).
+    '''
+    global PC, MAR
+    MAR = PC  # Endereço da instrução a ser executada -> apontada por PC
+    arq.seek(OFFSET_ARQ, 0)  # Pula a memória e as instruções já executadas
+    instrucao = arq.readline().strip('\n')  # Lê a próxima instrução
+    PC = str(hex(int(PC, 16) + 1)).upper()  # Incrementa o PC
+    offset = arq.tell()
+    return instrucao, offset
+
 def buscar_referencia(memoria_volatil: list[str], parametro: str) -> int:
     '''
     Determina qual dado de registrador ou dado de memória a instrução precisa.
@@ -339,7 +353,7 @@ def executar_STOR(memoria_volatil: list[str], instrucao: list[str], arq: io.Text
 
 def executar_JUMP(arq: io.TextIOWrapper, instrucao: list[str], offset_inst: int) -> None:
     '''
-    Executa um salto na execução sequencial das instruções: JUMP X
+    Executa um salto na execução sequencial das instruções: JUMP X : PC <- X
         :param io.TextIOWrapper arq: -> arquivo que contém as instruções.
         :param list[str] instrucao: -> instrução a ser executada.
         :param int offset_inst: -> offset do início das instruções.
@@ -356,11 +370,17 @@ def executar_JUMP(arq: io.TextIOWrapper, instrucao: list[str], offset_inst: int)
         OFFSET_ARQ = arq.tell()  # Atualiza o offset daquele endereço
         contar = str(hex(int(contar, 16) + 1)).upper()  # Incrementa o contador
         volta = arq.readline().strip('\n')
-        #ao fim, o offset do inicio da linha correspondente ao endereço de PC é atualizado e levado para a leitura das proximas instruções
+        # No fim, o offset do início da linha correspondente ao endereço de PC
+        # É atualizado e levado para a leitura das proximas instruções
 
 def executar_JUMP_zero(arq: io.TextIOWrapper, instrucao: list[str], offset_inst: int) -> None:
-    ''' JUMP+ X : PC <- X (A >= 0)
-    Executa um salto na execução sequencial das instruções se o AC for MAIOR ou igual a 0.'''
+    '''
+    Executa um salto na execução sequencial das instruções se o AC for MAIOR ou igual a 0: JUMP+ X : PC <- X (A >= 0)
+        :param io.TextIOWrapper arq: -> arquivo que contém as instruções.
+        :param list[str] instrucao: -> instrução a ser executada.
+        :param int offset_inst: -> offset do início das instruções.
+        :return None:
+    '''
     global PC, AC, OFFSET_ARQ
     if AC >= 0:
         PC = instrucao[1]  # Pular para a rotina de instrução -> novo endereço
@@ -373,36 +393,45 @@ def executar_JUMP_zero(arq: io.TextIOWrapper, instrucao: list[str], offset_inst:
             OFFSET_ARQ = arq.tell()  # Atualiza o offset daquele endereço
             contar = str(hex(int(contar, 16) + 1)).upper()  # Incrementa o contador
             volta = arq.readline().strip('\n')
-        #ao fim, o offset do inicio da linha correspondente ao endereço de PC é atualizado e levado para a leitura das proximas instruções
+        # No fim, o offset do início da linha correspondente ao endereço de PC
+        # É atualizado e levado para a leitura das proximas instruções
     else:
         print(f"Instrução não executada! Condição não respeitada! (AC = {AC})")
 
 def executar_LSH() -> None:
     '''
-    Desloca os bits do registrador AC para a esquerda.
-    Equivale `a multiplicar o valor em AC por 2
+    Desloca os bits do registrador AC para a esquerda. Equivale a multiplicar o valor em AC por 2.
+        :return None:
     '''
     global AC
     print("AC =", AC)
-    AC = AC << 1 #desloca o conteúdo de AC uma posição à esquerda
+    AC = AC << 1  # Desloca o conteúdo de AC uma posição à esquerda
     print(f"AC = {AC} -> AC * 2 (<< LSH)")
 
 def executar_RSH() -> None:
     '''
-    Desloca os bits do registrador AC para a direita.
-    Equivale `a dividir o valor em AC por 2
+    Desloca os bits do registrador AC para a direita. Equivale a dividir o valor em AC por 2.
+        :return None:
     '''
     global AC
     print("AC =", AC)
-    AC = AC >> 1 #desloca o conteúdo de AC uma posição à direita
+    AC = AC >> 1  # Desloca o conteúdo de AC uma posição à direita
     print(f"AC = {AC} -> AC / 2 (>> RSH)")
 
 def executar_instrucao(memoria_volatil: list[str], instrucao: str, arq: io.TextIOWrapper, offset_inst: int) -> None:
+    '''
+    Executa a instrução atual, e identifica qual instrução está sendo executada.
+        :param list[str] memoria_volatil: -> contém os dados e endereços.
+        :param str instrucao: -> instrução a ser executada.
+        :param io.TextIOWrapper arq: -> arquivo que contém as instruções.
+        :param int offset_inst: -> offset do início das instruções.
+        :return None:
+    '''
     global IR
     instrucao = instrucao.split(' ')
     IR = instrucao[0]
-    print("Instrução atual -> IR:", IR) #mostra qual instrução está sendo executada
-    if IR == 'LOAD': #identifica a instrução
+    print("Instrução atual -> IR:", IR)  # Mostra qual instrução está sendo executada
+    if IR == 'LOAD':  # Identifica a instrução
         executar_LOAD(memoria_volatil, instrucao)
     elif IR == 'MOV':
         executar_MOV(instrucao)
@@ -429,14 +458,7 @@ def executar_instrucao(memoria_volatil: list[str], instrucao: str, arq: io.TextI
 
 # =============================================
 
-def buscar_instrucao(arq: io.TextIOWrapper) -> tuple[str, int]:
-    global PC, MAR
-    '''Busca a próxima instrução no endereço apontado por PC.'''
-    MAR = PC #endereço da instrução a ser executada -> apontada por PC
-    arq.seek(OFFSET_ARQ, 0) #pula a memoria e as instruções já executadas
-    instrucao = arq.readline().strip('\n') # le a próxima instrução
-    PC = str(hex(int(PC, 16) + 1)).upper() #incrementa o PC
-    return instrucao, arq.tell() #instrução lida, offset da proxima instrucao (próxima linha)
+# ============ FUNÇÃO DE EXECUÇÃO =============
 
 def main():
     try:
@@ -444,18 +466,18 @@ def main():
         arqOp = input("\nDigite o nome (com extensão .txt) do arquivo de memória a ser executado: ")  # Define o arquivo de operações
         arq = open(arqOp, 'r+')
         memoria_volatil_dados, OFFSET_ARQ = carregar_memoria(arq)  # Carrega os elementos da memória em uma lista e pega o primeiro valor de PC (primeira linha pós memória) e o offset da próxima linha
-        comeco = OFFSET_ARQ #variável para o primeiro offset das instruções
+        comeco = OFFSET_ARQ  # Guarda o primeiro offset das instruções
 
-        PC = arq.readline().strip('\n') #primeiro endereco do PC -> primeira linha pós-memória (tira o \n da quebra)
-        OFFSET_ARQ = arq.tell() #offset após ler o PC
-        print("Endereço da próxima instrução -> PC:", PC, "\n") #printa o primeiro endereco de PC
-        MBR, OFFSET_ARQ = buscar_instrucao(arq) #busca a proxima instrução (do endereço de PC) -> carrega em MBR, incrementa PC e retorna o offset da próxima linha
+        PC = arq.readline().strip('\n')  # O primeiro endereco do PC é a primeira linha pós-memória
+        OFFSET_ARQ = arq.tell()  # Offset após ler PC
+        print("Endereço da próxima instrução -> PC =", PC, "\n")
+        MBR, OFFSET_ARQ = buscar_instrucao(arq)  # Busca a proxima instrução (endereço de PC) -> carrega em MBR, incrementa PC e retorna o offset da próxima linha
         while MBR != '':
-            print('Busca da instrução -> Endereço -> MAR:', MAR)
-            print("MBR:", MBR)
-            executar_instrucao(memoria_volatil_dados, MBR, arq, comeco) #usam os dados da "memoria_volatil" para executar a instrução de "MBR".
-            print("Endereço da próxima instrução -> PC: ", PC, "\n")
-            MBR, OFFSET_ARQ = buscar_instrucao(arq) #busca a proxima instrução (do endereço de PC) -> carrega em MBR, incrementa PC e retorna o offset da próxima linha
+            print('Busca da instrução -> Endereço -> MAR =', MAR)
+            print("MBR =", MBR)
+            executar_instrucao(memoria_volatil_dados, MBR, arq, comeco) # Usa os dados da "memoria_volatil" para executar a instrução de "MBR"
+            print("Endereço da próxima instrução -> PC =", PC, "\n")
+            MBR, OFFSET_ARQ = buscar_instrucao(arq)  # Busca a proxima instrução (endereço de PC) -> carrega em MBR, incrementa PC e retorna o offset da próxima linha
 
         arq.seek(comeco)
         memoria_volatil_instrucoes = arq.readlines()  # Guarda todas as instruções do arquivo em uma memoria volátil
@@ -473,3 +495,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+# =============================================
