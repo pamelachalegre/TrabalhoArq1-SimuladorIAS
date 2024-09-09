@@ -10,35 +10,68 @@ O objetivo deste projeto foi desenvolver um programa que simula o comportamento 
 
 O simulador executa o algoritmo de ordenação por Seleção (Selection Sort) e o algoritmo do cálculo de média, o qual foi escolhido pelo grupo. As instruções para cada algoritmo são fornecidas através de um arquivo texto, onde os dados e a sequência de comandos são especificados.
 
-## Como executar?
-
-Para executar o simulador do computador IAS, siga os passos abaixo:
-
-1. Execute o script principal do simulador: python registradoresORDEM.py
-
-2. O programa solicitará o nome do arquivo de memória a ser executado. Insira o nome do arquivo, incluindo a extensão .txt.
-
-3. Dessa forma, o simulador processará as instruções no arquivo e exibirá na tela o conteúdo dos registradores e as micro-operações realizadas em cada etapa.
-
 ## Integrantes
 
 | Nome | RA |
-|-----|-----|
+|--|--|
 | Ana Paula Loureiro Crippa | 137304 |
 | Maria Eduarda de Mello Policante | 134539 |
 | Pâmela Camilo Chalegre | 134241 |
 
+## Como executar?
+
+Para executar o simulador do computador IAS, siga os passos abaixo:
+
+1. Descompacte o arquivo:
+	```
+	cpu_ra137304_ra134539_ra134241.zip
+	```
+2. Execute o script principal do simulador: 
+	```
+	python simuladorIAS.py
+	```
+3. O programa solicitará o nome do arquivo de memória a ser executado. Insira o nome do arquivo, incluindo a extensão .txt. Por exemplo:
+	```
+	media.txt
+	selectionsort.txt
+	```
+4. Dessa forma, o simulador processará as instruções no arquivo e exibirá na tela o conteúdo dos registradores e as micro-operações realizadas em cada etapa.
+
 ## Estrutura do código
+
+Os registradores são memórias voláteis e de tamanho limitado, são utilizados para armazenar dados e resultados intermediários durante a simulação. Como são pequenas unidades de armazenamento dentro do processador que guardam dados temporários durante a execução de instruções, escolhemos representar todos os registradores como variáveis.
 
 O simulador é composto por uma série de funções que representam as operações realizadas pelo computador IAS.
 
-Os registradores são memórias voláteis, os quais foram implementados como variáveis globais, e são utilizados para armazenar dados e resultados intermediários durante a simulação.
-
-escrever maisssss ...??
-
 ## Registradores
 
+### Presentes na Unidade Lógica e Aritmética (ULA)
+
+- MBR (*Memory Buffer Register*)
+	> Armazena temporariamente dados lidos da memória ou dados que ainda serão escritos na memória.
+
+- AC (*Accumulator*)
+	> Armazena temporariamente operandos e resultados de operações lógicas e aritméticas.
+	> Serve como registrador padrão, isto é, caso não seja explicitado um endereço para as operações LOAD, STOR, ADD, SUB, LSH e RSH, é o registrador AC que armazenará o operando ou o resultado.
+
+- MQ (*Multiplier Quotient*)
+	> Armazena temporariamente operandos e resultados de operações aritméticas.
+	> Serve como registrador padrão, isto é, caso não seja explicitado um endereço para as operações MUL e DIV, é o registrador MQ que armazenará o operando ou o resultado.
+
+- R (Resto da Divisão)
+	> Armazena temporariamente o resto da operação de divisão.
+
+- C (*Carry Out*)
+	> Armazena temporariamente a informação se o resultado de uma operação pertence ao limite estipulado, o qual é de 10 bits. Dessa forma, o intervalo é de -1023 a 1024.
+	> Se há carry, é setada como 1. Se não há, é setada como 0.
+
+- Z (Resultado Zero)
+	> Armazena temporariamente a informação se o resultado de uma operação é zero.
+	> Se o resultado é igual a zero, é setada como 1. Se é diferente, é setada como 0.
+
 ### Presentes na Unidade de Controle (UC)
+
+Registradores que armazenam partes da instrução.
 
 - PC (*Program Counter*)
 	> Armazena um valor que representa o endereço de memória, o qual possui a próxima instrução a ser executada.
@@ -56,57 +89,64 @@ escrever maisssss ...??
 	> Armazena temporariamente a instrução mais a direita da palavra.
 	> Apesar de este registrador estar presente no computador IAS, devido às especificações propostas pelo professor, decidimos por não implementar o IBR em nosso trabalho.
 
-### Presentes na Unidade Lógica e Aritmética (ULA)
+- Registradores de uso geral
+	> São eles: GERAL_A, GERAL_B, GERAL_C, GERAL_D.
+	> Armazenam dados temporários durante a execução de instruções. 
+	> São essenciais para operações aritméticas, lógicas e de controle.
 
-- MBR (*Memory Buffer Register*)
-	> Armazena temporariamente dados lidos da memória ou dados que ainda serão escritos na memória.
+- Variáveis auxiliares aos registradores
+	> OFFSET_ARQ auxilia na manipulação do arquivo; 
+	> USO_ULA auxilia na manipulação dos dados de operações lógicas e aritméticas;
+	> BARRA_DADOS auxiliar na manipulação de dados durante as operações;
 
-- AC (*Accumulator*)
-	> Armazena temporariamente operandos e resultados de operações lógicas e aritméticas.
-	> Serve como registrador padrão, isto é, caso não seja explicitado um endereço para as operações LOAD, STOR, ADD, SUB, LSH e RSH, é o registrador AC que armazenará o operando ou o resultado.
+## Funções Auxiliares
 
-- MQ (*Multiplier Quotient*)
-	> Armazena temporariamente operandos e resultados de operações aritméticas.
-	> Serve como registrador padrão, isto é, caso não seja explicitado um endereço para as operações MUL e DIV, é o registrador MQ que armazenará o operando ou o resultado.
+### analisar_resultado
+> Analisa se o resultado de uma operação está dentro do limite estipulado de 10 bits. Como o máximo definido é 10 bits, o intervalo é de -1023 a 1024.
+### atualizar_registrador
+> Atualiza o registrador correto com seu novo valor, isto é, o valor resultante da instrução executada.
+### buscar_endereco
+> Busca o endereço na memória e retorna o dado e sua posição na memória volátil se for endereçamento direto. Caso seja endereçamento imediato, retorna o próprio dado.
+### buscar_instrucao
+> Busca a próxima instrução no endereço apontado por PC.
+### buscar_referencia
+> Determina qual dado de registrador ou dado de memória a instrução precisa.
+### carregar_memoria
+> Carrega a memória volátil com os dados do arquivo.
 
-## Funções
+## Funções Principais
 
-### Principais
-
-executar_LOAD: Carrega um valor da memória no acumulador ou em outro registrador especificado.
-
-executar_ADD: Soma um dado ao acumulador ou a outro registrador especificado.
-
-executar_SUB: Subtrai um dado do acumulador ou de outro registrador especificado.
-
-executar_MULT: Multiplica um dado pelo MQ ou outro registrador especificado.
-
-executar_DIV: Divide o acumulador ou um registrador específico por um dado.
-
-executar_STOR: Armazena um dado de um registrador na memória volátil. Pode armazenar o valor do AC ou de outro registrador em um endereço de memória especificado.
-
-executar_JUMP: Executa um salto na execução das instruções, alterando o PC para o endereço especificado.
-
-executar_JUMP_zero: Executa um salto na execução das instruções se o valor do acumulador for maior ou igual a zero.
-
-executar_LSH: Desloca os bits do registrador AC para a esquerda (LSH - Left Shift), equivalente a multiplicar o valor em AC por 2.
-
-executar_RSH: Desloca os bits do registrador AC para a direita (RSH - Right Shift), equivalente a dividir o valor em AC por 2.
-
-### Auxiliares
-
-analisar_resultado: Verifica se o resultado da operação está dentro dos limites e ajusta os registradores de carry (C) e zero (Z) conforme necessário.
-
-carregar_memoria: Lê o arquivo de memória e carrega os dados na memória volátil. Retorna os dados e o offset onde começam as instruções reais.
-
-buscar_endereco: Busca o endereço na memória volátil e retorna o dado correspondente ou o próprio dado se for endereçamento imediato.
-
-buscar_referencia: Identifica e retorna o dado necessário da memória ou do registrador conforme a instrução.
-
-atualizar_registrador: Atualiza o registrador correto com o novo valor resultante da instrução executada.
+### executar_LOAD
+> Carrega um valor da memória no acumulador (AC) ou em outro registrador especificado: LOAD X | LOAD X, Y.
+### executar_MOV
+> Move dados de um registrador para outro: MOV X | MOV X, Y.
+### executar_STOR
+> Armazena um dado de um registrador na memória volátil. STOR X | STOR X, Y.
+### executar_JUMP
+> Executa um salto na execução sequencial das instruções: JUMP X : PC <- X.
+### executar_JUMP_zero
+> Executa um salto na execução sequencial das instruções se o AC for MAIOR ou igual a 0: JUMP+ X : PC <- X (A >= 0).
+### executar_ADD
+> Soma um dado ao acumulador ou a outro registrador especificado: ADD X | ADD X, Y.
+### executar_SUB
+> Subtrai um dado de AC ou outro registrador especificado: SUB X | SUB X, Y.
+### executar_MUL
+> Multiplica um dado X pelo MQ ou outro registrador especificado: MULT X | MULT X, Y.
+### executar_DIV
+> Divide o AC ou um registrador Y por um dado X: DIV X, Y; ou divide o AC pelo valor armazenado em X da memoria: DIV X.
+### executar_LSH
+> Desloca os bits do registrador AC para a esquerda. Equivale a multiplicar o valor em AC por 2.
+### executar_RSH
+> Desloca os bits do registrador AC para a direita. Equivale a dividir o valor em AC por 2.
+### executar_instrucao
+> Executa a instrução atual, e identifica qual instrução está sendo executada.
 
 ## Referências
 
 BORIN, Edson; AULER, Rafael. Programando o computador IAS. UNICAMP, 2012. Disponível em: https://www.ic.unicamp.br/~edson/disciplinas/mc404/2012-1s/anexos/programando_o_IAS.pdf. Acesso em: 14 ago. 2024.
 
-colocar os materiais do calvo aqui tb
+CALVO, Rodrigo. **Estruturas de Interconexão do Computador:** Arquitetura e Organização de Computadores I. Universidade Estadual de Maringá – UEM. Departamento de Informática – DIN. jul. 2024. Apresentação de Power Point. Acesso em: 14. ago. 2024.
+
+CALVO, Rodrigo. **Conjunto de Instruções: Características e Funções:** Arquitetura e Organização de Computadores I. Universidade Estadual de Maringá – UEM. Departamento de Informática – DIN. jul. 2024. Apresentação de Power Point. Acesso em: 19. ago. 2024.
+
+CALVO, Rodrigo. **Conjunto de Instruções: Modos de Endereçamento e Formatos:** Arquitetura e Organização de Computadores I. Universidade Estadual de Maringá – UEM. Departamento de Informática – DIN. jul. 2024. Apresentação de Power Point. Acesso em: 19. ago. 2024.
