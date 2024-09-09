@@ -221,8 +221,8 @@ def executar_STOR(memoria_volatil: list[str], instrucao: list[str], arq: io.Text
         MAR = local
     else:  # Posição de escrita está armazenada em um registrador
         MAR = buscar_referencia([], local)  # MAR recebe a posição armazenada no registrador
-
-    dado = buscar_endereco(memoria_volatil, MAR)  # Busca se o endereço MAR está na memoria_volatil
+    
+    dado = buscar_endereco(memoria_volatil, (f"M({MAR})"))  # Busca se o endereço MAR está na memoria_volatil
     posicao = int(MAR, 16)  # Transforma o endereço hexadecimal em inteiro
     if len(instrucao) == 2:  # STOR X : X <- AC
         print(memoria_volatil[posicao], "->", end=' ')  # Ir para a linha/posição do MAR
